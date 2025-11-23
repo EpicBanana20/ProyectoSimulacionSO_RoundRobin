@@ -84,6 +84,12 @@ public class Proceso {
         tiempoRestante -= quantum;
         if (tiempoRestante < 0) tiempoRestante = 0;
     }
+    
+    public void cambiarEstado(Estado nuevoEstado) {
+        System.out.println("Proceso " + id + ": " + estado + " → " + nuevoEstado);
+        this.estado = nuevoEstado;
+    }
+
 
     // ======== TIEMPOS DERIVADOS PARA ROUND ROBIN ========
 
