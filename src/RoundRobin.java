@@ -2,7 +2,7 @@ import java.util.*;
 
 public class RoundRobin {
 
-    private Queue<Proceso> colaListos;
+    public Queue<Proceso> colaListos;
     private int quantum;
     private int tiempoGlobal;
 
