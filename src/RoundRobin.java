@@ -75,7 +75,7 @@ public class RoundRobin {
     }
 
     // ====================================================
-    //  EJECUTAR Round Robin con Prioridad
+    //  EJECUTAR Round Robin con Prioridad (VERSIÓN LENTA)
     // ====================================================
     public List<Proceso> ejecutar() {
 
@@ -99,11 +99,28 @@ public class RoundRobin {
                 actual.setTiempoInicio(tiempoGlobal);
             }
 
-            // Ejecutar por quantum o por lo que reste
-            int tiempoEjecutado = Math.min(quantum, actual.getTiempoRestante());
-            actual.consumirCPU(tiempoEjecutado);
+            // Ejecutar quantum pero lento (1 unidad por iteración)
+            int ciclos = Math.min(quantum, actual.getTiempoRestante());
 
-            tiempoGlobal += tiempoEjecutado;
+            for (int i = 0; i < ciclos; i++) {
+
+                // Consumir 1 unidad
+                actual.consumirCPU(1);
+                tiempoGlobal += 1;
+
+                System.out.println(
+                        "[CPU] Ejecutando P" + actual.getId() +
+                        " | Restante=" + actual.getTiempoRestante() +
+                        " | TiempoGlobal=" + tiempoGlobal
+                );
+
+                // 🔥 Delay visible en tiempo real
+                try {
+                    Thread.sleep(500); // medio segundo por unidad
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
 
             // Proceso terminó
             if (actual.getTiempoRestante() == 0) {
@@ -126,5 +143,13 @@ public class RoundRobin {
         return tiempoGlobal;
     }
 
-    
+    // Para que el planificador pueda medir carga
+    public int getCantidadProcesos() {
+        int total = 0;
+
+        for (Queue<Proceso> q : colasListos.values()) total += q.size();
+        for (Queue<Proceso> q : colasSuspendidos.values()) total += q.size();
+
+        return total;
+    }
 }

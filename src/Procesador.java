@@ -30,4 +30,8 @@ public class Procesador extends Thread {
 
         System.out.println("CPU " + id + " terminó ejecución.");
     }
+
+    public int getCarga() {
+        return rr.getCantidadProcesos();
+    }
 }

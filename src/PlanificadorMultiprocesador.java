@@ -14,17 +14,18 @@ public class PlanificadorMultiprocesador {
 
     // Reparto simple: al CPU con menos procesos en cola
     public void agregarProceso(Proceso p) {
+
         Procesador cpuMenosCarga = cpus.get(0);
 
         for (Procesador cpu : cpus) {
-            if (cpu.getState() == Thread.State.NEW) {
-                // todavía no ha iniciado, puedes agregar libremente
+            if (cpu.getCarga() < cpuMenosCarga.getCarga()) {
                 cpuMenosCarga = cpu;
             }
         }
 
         cpuMenosCarga.agregarProceso(p);
     }
+
 
     // Ejecutar los CPUs en paralelo
     public List<Proceso> ejecutar() {
