@@ -11,6 +11,8 @@ public class Procesador extends Thread {
         this.id = id;
         this.rr = new RoundRobin(quantum);
         this.terminados = new ArrayList<>();
+
+        rr.setCpuId(id); // ← IMPORTANTE: avisar de qué CPU es
     }
 
     public void agregarProceso(Proceso p) {
@@ -24,10 +26,7 @@ public class Procesador extends Thread {
     @Override
     public void run() {
         System.out.println("CPU " + id + " iniciando...");
-
-        // El RR corre dentro del hilo
         terminados = rr.ejecutar();
-
         System.out.println("CPU " + id + " terminó ejecución.");
     }
 
