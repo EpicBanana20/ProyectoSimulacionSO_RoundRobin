@@ -1,8 +1,9 @@
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class PlanificadorMultiprocesador {
 
-    private List<Procesador> cpus;
+    private final List<Procesador> cpus;
 
     public PlanificadorMultiprocesador(int numProcesadores, int quantum) {
         cpus = new ArrayList<>();
@@ -12,34 +13,22 @@ public class PlanificadorMultiprocesador {
         }
     }
 
+    public void iniciar() {
+        for (Procesador cpu : cpus) cpu.start();
+    }
+
+    public void detener() {
+        for (Procesador cpu : cpus) cpu.detener();
+    }
+
     // Reparto REAL: CPU con menos carga total
     public void agregarProceso(Proceso p) {
-
         Procesador cpuMenosCarga = cpus.get(0);
-
         for (Procesador cpu : cpus) {
             if (cpu.getCarga() < cpuMenosCarga.getCarga()) {
                 cpuMenosCarga = cpu;
             }
         }
-
         cpuMenosCarga.agregarProceso(p);
-    }
-
-    public List<Proceso> ejecutar() {
-        List<Proceso> result = new ArrayList<>();
-
-        for (Procesador cpu : cpus) cpu.start();
-
-        for (Procesador cpu : cpus) {
-            try { cpu.join(); } 
-            catch (InterruptedException e) { e.printStackTrace(); }
-        }
-
-        for (Procesador cpu : cpus) {
-            result.addAll(cpu.getTerminados());
-        }
-
-        return result;
     }
 }

@@ -1,36 +1,35 @@
-import java.util.ArrayList;
-import java.util.List;
-
 public class Procesador extends Thread {
 
-    private int id;
-    private RoundRobin rr;
-    private List<Proceso> terminados;
+    private final int id;
+    private final RoundRobin rr;
+    private volatile boolean ejecutando = true;
 
     public Procesador(int id, int quantum) {
         this.id = id;
         this.rr = new RoundRobin(quantum);
-        this.terminados = new ArrayList<>();
-
-        rr.setCpuId(id); // ← IMPORTANTE: avisar de qué CPU es
+        rr.setCpuId(id);
     }
 
+    // delega al RoundRobin (thread-safe)
     public void agregarProceso(Proceso p) {
         rr.agregarProceso(p);
     }
 
-    public List<Proceso> getTerminados() {
-        return terminados;
+    public int getCarga() {
+        return rr.getCantidadProcesos();
+    }
+
+    public void detener() {
+        ejecutando = false;
+        this.interrupt(); // para despertar si está durmiendo
     }
 
     @Override
     public void run() {
         System.out.println("CPU " + id + " iniciando...");
-        terminados = rr.ejecutar();
-        System.out.println("CPU " + id + " terminó ejecución.");
-    }
-
-    public int getCarga() {
-        return rr.getCantidadProcesos();
+        while (ejecutando) {
+            rr.ejecutarTick();
+        }
+        System.out.println("CPU " + id + " detenido.");
     }
 }

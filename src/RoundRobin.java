@@ -3,13 +3,12 @@ import java.util.*;
 public class RoundRobin {
 
     // Colas organizadas por prioridad
-    private Map<Integer, Queue<Proceso>> colasListos;
-    private Map<Integer, Queue<Proceso>> colasSuspendidos;
+    private final Map<Integer, Queue<Proceso>> colasListos;
+    private final Map<Integer, Queue<Proceso>> colasSuspendidos;
 
-    private int quantum;
+    private final int quantum;
     private int tiempoGlobal;
 
-    // Identificador del CPU que usa este RoundRobin
     private int cpuId = -1;
 
     public RoundRobin(int quantum) {
@@ -23,7 +22,8 @@ public class RoundRobin {
         this.cpuId = id;
     }
 
-    public void agregarProceso(Proceso p) {
+    // thread-safe: varios hilos pueden agregar procesos
+    public synchronized void agregarProceso(Proceso p) {
         colasListos.putIfAbsent(p.getPrioridad(), new LinkedList<>());
         p.cambiarEstado(Proceso.Estado.LISTO);
         colasListos.get(p.getPrioridad()).add(p);
@@ -60,65 +60,71 @@ public class RoundRobin {
         }
     }
 
-    public List<Proceso> ejecutar() {
+    // Ejecuta UN TICK (una unidad de trabajo) — diseñado para llamarse repetidamente por el hilo del CPU
+    public void ejecutarTick() {
 
-        List<Proceso> terminados = new ArrayList<>();
+        Proceso actual = null;
 
-        while (hayProcesosPendientes()) {
-
+        // sincronizar el acceso a colas para evitar race conditions
+        synchronized (this) {
             if (todasLasColasListasVacias()) {
-                System.out.println("\n=== Todos agotaron quantum → Nuevo ciclo ===\n");
-                reanudarSuspendidos();
+                // si no hay listos pero hay suspendidos, reanudar
+                if (!colasSuspendidos.isEmpty() && colasSuspendidos.values().stream().anyMatch(q -> !q.isEmpty())) {
+                    reanudarSuspendidos();
+                }
             }
 
-            Proceso actual = obtenerSiguienteProceso();
-            if (actual == null) continue;
+            actual = obtenerSiguienteProceso();
+        }
 
-            actual.cambiarEstado(Proceso.Estado.EJECUTANDO);
+        if (actual == null) {
+            // sin trabajo: avanzamos tiempo global y dormimos un poco
+            try { Thread.sleep(50); } catch (InterruptedException ignored) {}
+            tiempoGlobal++;
+            return;
+        }
 
-            if (actual.getTiempoInicio() == -1) {
-                actual.setTiempoInicio(tiempoGlobal);
-            }
+        actual.cambiarEstado(Proceso.Estado.EJECUTANDO);
 
-            int ciclos = Math.min(quantum, actual.getTiempoRestante());
+        if (actual.getTiempoInicio() == -1) {
+            actual.setTiempoInicio(tiempoGlobal);
+        }
 
-            for (int i = 0; i < ciclos; i++) {
+        // consumir 1 unidad (un tick)
+        actual.consumirCPU(1);
+        tiempoGlobal++;
 
-                actual.consumirCPU(1);
-                tiempoGlobal += 1;
+        System.out.println("[CPU " + cpuId + "] Ejecutando P" + actual.getId() +
+                " | Restante=" + actual.getTiempoRestante() +
+                " | TiempoGlobal=" + tiempoGlobal);
 
-                System.out.println(
-                    "[CPU " + cpuId + "] Ejecutando P" + actual.getId() +
-                    " | Restante=" + actual.getTiempoRestante() +
-                    " | TiempoGlobal=" + tiempoGlobal
-                );
-
-                try { Thread.sleep(500); } 
-                catch (InterruptedException e) { e.printStackTrace(); }
-            }
-
-            if (actual.getTiempoRestante() == 0) {
-                actual.setTiempoFin(tiempoGlobal);
-                actual.cambiarEstado(Proceso.Estado.TERMINADO);
-                terminados.add(actual);
-            } else {
-                actual.cambiarEstado(Proceso.Estado.SUSPENDIDO);
+        // si terminó, marcar terminado
+        if (actual.getTiempoRestante() == 0) {
+            actual.setTiempoFin(tiempoGlobal);
+            actual.cambiarEstado(Proceso.Estado.TERMINADO);
+            // terminado fuera de las colas (no reinsertamos)
+        } else {
+            // si no termina, lo suspendemos (vuelve a la cola suspendidos)
+            actual.cambiarEstado(Proceso.Estado.SUSPENDIDO);
+            synchronized (this) {
                 colasSuspendidos.putIfAbsent(actual.getPrioridad(), new LinkedList<>());
                 colasSuspendidos.get(actual.getPrioridad()).add(actual);
             }
         }
 
-        return terminados;
+        try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
     }
 
-    public int getTiempoGlobal() {
-        return tiempoGlobal;
-    }
-
-    public int getCantidadProcesos() {
+    // retorna la cantidad de procesos que están en colas (listos + suspendidos)
+    public synchronized int getCantidadProcesos() {
         int total = 0;
         for (Queue<Proceso> q : colasListos.values()) total += q.size();
         for (Queue<Proceso> q : colasSuspendidos.values()) total += q.size();
         return total;
+    }
+
+    // getter del tiempo global si lo necesitas
+    public int getTiempoGlobal() {
+        return tiempoGlobal;
     }
 }
