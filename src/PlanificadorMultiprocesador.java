@@ -16,8 +16,14 @@ public class PlanificadorMultiprocesador {
     public PlanificadorMultiprocesador(int numProcesadores, int quantum) {
         cpus = new ArrayList<>();
 
+        // crear CPUs
         for (int i = 0; i < numProcesadores; i++) {
             cpus.add(new Procesador(i, quantum, tickLock));
+        }
+
+        // establecer referencia al planificador en cada CPU (para permitir robo)
+        for (Procesador cpu : cpus) {
+            cpu.setPlanificador(this);
         }
     }
 
@@ -33,7 +39,7 @@ public class PlanificadorMultiprocesador {
             System.out.println("Reloj global iniciando...");
             while (relojEjecutando) {
                 try {
-                    Thread.sleep(1000); // duración de un tick (100 ms). Ajusta a 1000 si quieres 1s/tick.
+                    Thread.sleep(1000); // duración de un tick (1s). Ajusta si quieres más rápido.
                 } catch (InterruptedException e) {
                     if (!relojEjecutando) break;
                 }
@@ -96,6 +102,29 @@ public class PlanificadorMultiprocesador {
         p.setTiempoLlegada(llegada);
 
         cpuMenosCarga.agregarProceso(p);
+    }
+
+    // --- WORK STEALING: intentar robar para el CPU 'thief' ---
+    public Proceso intentarRobar(Procesador thief) {
+        // elegir CPU más cargado distinto de thief
+        Procesador origen = null;
+        int maxCarga = 0;
+        for (Procesador cpu : cpus) {
+            if (cpu == thief) continue;
+            int carga = cpu.getCarga();
+            if (carga > maxCarga) {
+                maxCarga = carga;
+                origen = cpu;
+            }
+        }
+
+        if (origen == null || maxCarga == 0) return null;
+
+        // pedir a la RR del origen que extraiga un proceso para robo
+        Proceso p = origen.getColasSnapshot().isEmpty() ? null : origen.rr.extraerProcesoParaRobo();
+        // nota: usamos método package-private/accessible porque estamos en el mismo paquete;
+        // si necesitas encapsulación más estricta, lo exponemos con getter en Procesador.
+        return p;
     }
 
     public List<Proceso> getTodosTerminados() {

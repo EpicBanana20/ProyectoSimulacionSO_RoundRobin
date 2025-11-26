@@ -118,4 +118,34 @@ public class RoundRobin {
     public synchronized int getTicksEnQuantum() {
         return ticksEnQuantum;
     }
+
+    // -----------------------
+    // Work-stealing helpers
+    // -----------------------
+
+    // Extrae un proceso para que otro CPU lo robe.
+    // Política: roba de la cola de menor prioridad (número mayor) primero.
+    public synchronized Proceso extraerProcesoParaRobo() {
+        // iterar prioridades en orden descendente (mayor número = prioridad más baja)
+        for (Integer prio : colasListos.descendingKeySet()) {
+            Queue<Proceso> q = colasListos.get(prio);
+            if (q != null && !q.isEmpty()) {
+                return q.poll();
+            }
+        }
+        return null;
+    }
+
+    // Asigna inmediatamente un proceso robado como "actual" en este RR
+    public synchronized void asignarProcesoRobado(Proceso p) {
+        // si hay actual en ejecución, encolar (no debería pasar si llamamos desde idle)
+        if (actual != null) {
+            colasListos.putIfAbsent(p.getPrioridad(), new LinkedList<>());
+            colasListos.get(p.getPrioridad()).add(p);
+            return;
+        }
+        actual = p;
+        ticksEnQuantum = 0;
+        p.cambiarEstado(Proceso.Estado.LISTO); // aparecerá como ejecutable; se fijará inicio al ejecutar
+    }
 }

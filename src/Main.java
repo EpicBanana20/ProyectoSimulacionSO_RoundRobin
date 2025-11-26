@@ -11,7 +11,7 @@ public class Main {
         TiempoGlobal.reset();
 
         PlanificadorMultiprocesador plan =
-                new PlanificadorMultiprocesador(2, 4); // 2 CPUs, quantum 4 (quantum aquí es por nivel base)
+                new PlanificadorMultiprocesador(2, 4); // 2 CPUs, quantum 4 (base)
 
         plan.iniciar();  // arranca CPUs + reloj
 

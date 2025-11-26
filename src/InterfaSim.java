@@ -1,4 +1,4 @@
-/* File: InterfazSim.java */
+/* File: InterfaSim.java */
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
@@ -67,11 +67,11 @@ public class InterfaSim extends JFrame {
         for (int i = 0; i < cpus.size(); i++) {
             Procesador p = cpus.get(i);
             sbColas.append("---- CPU ").append(i).append(" ----\n");
-            Map<Integer, List<Proceso>> snap = p.getColasSnapshot();
+            Map<Integer, java.util.List<Proceso>> snap = p.getColasSnapshot();
             if (snap.isEmpty()) {
                 sbColas.append("(sin colas)\n");
             } else {
-                for (Map.Entry<Integer, List<Proceso>> e : snap.entrySet()) {
+                for (Map.Entry<Integer, java.util.List<Proceso>> e : snap.entrySet()) {
                     sbColas.append("Prio ").append(e.getKey()).append(": ").append(e.getValue()).append("\n");
                 }
             }

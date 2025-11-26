@@ -6,7 +6,7 @@ import java.util.Map;
 public class Procesador extends Thread {
 
     private final int id;
-    private final RoundRobin rr;
+    public final RoundRobin rr;
     private volatile boolean ejecutando = true;
     private final List<Proceso> terminados = new ArrayList<>();
 
@@ -16,6 +16,9 @@ public class Procesador extends Thread {
 
     // Lock compartido por el planificador/clock para sincronización de ticks
     private final Object tickLock;
+
+    // Referencia al planificador para solicitar robo de trabajo
+    private PlanificadorMultiprocesador planificador;
 
     public Procesador(int id, int quantum, Object tickLock) {
         this.id = id;
@@ -30,11 +33,22 @@ public class Procesador extends Thread {
         });
     }
 
+    // Setter para que el planificador establezca la referencia (se llama desde el planificador)
+    public void setPlanificador(PlanificadorMultiprocesador plan) {
+        this.planificador = plan;
+    }
+
     // delega al RoundRobin (thread-safe)
     public void agregarProceso(Proceso p) {
         rr.agregarProceso(p);
     }
 
+    // permite asignar un proceso robado inmediatamente
+    public void asignarProcesoRobado(Proceso p) {
+        rr.asignarProcesoRobado(p);
+    }
+
+    // Exponer carga (colas + actual)
     public int getCarga() {
         return rr.getCantidadProcesos();
     }
@@ -77,7 +91,6 @@ public class Procesador extends Thread {
                     tickLock.wait(); // despertado por el reloj global cada tick
                 } catch (InterruptedException e) {
                     if (!ejecutando) break;
-                    // si fue interrupción, continuar esperando el tick o terminar
                 }
             }
 
@@ -88,6 +101,15 @@ public class Procesador extends Thread {
 
             ticksTotales++;
             if (hizoTrabajo) ticksEjecutados++;
+
+            // Si no hizo trabajo, intentar robar de otro CPU
+            if (!hizoTrabajo && planificador != null) {
+                Proceso robado = planificador.intentarRobar(this);
+                if (robado != null) {
+                    // asignar proceso robado para que se ejecute a partir del próximo tick
+                    asignarProcesoRobado(robado);
+                }
+            }
         }
         System.out.println("CPU " + id + " detenido.");
     }
