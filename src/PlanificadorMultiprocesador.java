@@ -1,6 +1,9 @@
 /* File: PlanificadorMultiprocesador.java */
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class PlanificadorMultiprocesador {
 
@@ -121,9 +124,7 @@ public class PlanificadorMultiprocesador {
         if (origen == null || maxCarga == 0) return null;
 
         // pedir a la RR del origen que extraiga un proceso para robo
-        Proceso p = origen.getColasSnapshot().isEmpty() ? null : origen.rr.extraerProcesoParaRobo();
-        // nota: usamos método package-private/accessible porque estamos en el mismo paquete;
-        // si necesitas encapsulación más estricta, lo exponemos con getter en Procesador.
+        Proceso p = origen.rr.extraerProcesoParaRobo();
         return p;
     }
 
@@ -133,5 +134,27 @@ public class PlanificadorMultiprocesador {
             r.addAll(cpu.getTerminados());
         }
         return r;
+    }
+
+    /**
+     * Devuelve una lista con los procesos "activos" (listos o ejecutando)
+     * encontrados recorriendo los CPUs y sus colas.
+     */
+    public List<Proceso> getProcesosActivos() {
+        Set<Proceso> set = new HashSet<>();
+
+        for (Procesador cpu : cpus) {
+            // proceso actual
+            Proceso actual = cpu.getProcesoActual();
+            if (actual != null) set.add(actual);
+
+            // colas snapshot
+            Map<Integer, java.util.List<Proceso>> snap = cpu.getColasSnapshot();
+            for (java.util.List<Proceso> q : snap.values()) {
+                set.addAll(q);
+            }
+        }
+
+        return new ArrayList<>(set);
     }
 }

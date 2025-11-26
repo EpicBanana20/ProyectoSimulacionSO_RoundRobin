@@ -94,6 +94,34 @@ public class Proceso {
         this.estado = nuevoEstado;
     }
 
+    // ======= NUEVOS GETTERS / AYUDAS PARA LA GUI EN TIEMPO REAL =======
+
+    // Alias descriptivo
+    public int getRafagaRestante() {
+        return tiempoRestante;
+    }
+
+    // Tiempo ejecutado hasta ahora
+    public int getTiempoEjecutado() {
+        return tiempoCPU - tiempoRestante;
+    }
+
+    /**
+     * Tiempo de espera "actual" hasta el tiempo global:
+     * aproximación = tiempo global - llegada - tiempo ejecutado
+     * Si terminó, devuelve el tiempo de espera final (getTiempoEspera()).
+     */
+    public int getTiempoEsperaActual() {
+        if (tiempoFin != -1) {
+            // ya terminado: retorna la espera final conocida
+            return getTiempoEspera();
+        }
+        int ejecutado = getTiempoEjecutado();
+        int ahora = TiempoGlobal.get();
+        int espera = ahora - tiempoLlegada - ejecutado;
+        return Math.max(espera, 0);
+    }
+
     // TIEMPOS DERIVADOS
 
     // Tiempo de respuesta = inicio - llegada

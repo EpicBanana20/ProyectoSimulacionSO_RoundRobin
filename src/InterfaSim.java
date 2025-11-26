@@ -1,6 +1,8 @@
 /* File: InterfaSim.java */
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -11,11 +13,15 @@ public class InterfaSim extends JFrame {
     private final JTextArea areaCPUs;
     private final JTextArea areaColas;
 
+    // tabla procesos
+    private JTable tablaProcesos;
+    private DefaultTableModel modeloTablaProcesos;
+
     public InterfaSim(PlanificadorMultiprocesador plan) {
         this.plan = plan;
 
         setTitle("Simulador - Visor de procesos");
-        setSize(700, 500);
+        setSize(900, 600);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -35,6 +41,23 @@ public class InterfaSim extends JFrame {
         centro.add(new JScrollPane(areaColas));
 
         add(centro, BorderLayout.CENTER);
+
+        // --- tabla de procesos (sur) ---
+        String[] cols = {"ID", "Prio", "Llegada", "Inicio", "CPU Rest", "Espera", "Respuesta", "Retorno", "Estado"};
+        modeloTablaProcesos = new DefaultTableModel(cols, 0) {
+            // no editable
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        tablaProcesos = new JTable(modeloTablaProcesos);
+        tablaProcesos.setFillsViewportHeight(true);
+
+        JPanel sur = new JPanel(new BorderLayout());
+        sur.add(new JScrollPane(tablaProcesos), BorderLayout.CENTER);
+
+        add(sur, BorderLayout.SOUTH);
 
         setVisible(true);
 
@@ -78,5 +101,65 @@ public class InterfaSim extends JFrame {
         }
 
         areaColas.setText(sbColas.toString());
+
+        // actualizar tabla de procesos en tiempo real
+        actualizarTablaProcesos();
+    }
+
+    private void actualizarTablaProcesos() {
+
+        // limpiar la tabla
+        modeloTablaProcesos.setRowCount(0);
+
+        // obtener activos y terminados
+        List<Proceso> activos = plan.getProcesosActivos();
+        List<Proceso> terminados = plan.getTodosTerminados();
+
+        // Unir: primero activos (para listar en primer plano), luego terminados que no estén en activos
+        List<Proceso> todos = new ArrayList<>();
+        todos.addAll(activos);
+        for (Proceso t : terminados) {
+            if (!todos.contains(t)) todos.add(t);
+        }
+
+        for (Proceso p : todos) {
+
+            String estado;
+            if (terminados.contains(p)) {
+                estado = "Terminado";
+            } else {
+                Proceso actualDelCPU = encontrarProcesoEnCPUs(p);
+                if (actualDelCPU != null && actualDelCPU == p) {
+                    estado = "Ejecutando";
+                } else {
+                    estado = "Listo";
+                }
+            }
+
+            Object inicio = (p.getTiempoInicio() >= 0 ? p.getTiempoInicio() : "-");
+            Object resp = (p.getTiempoRespuesta() >= 0 ? p.getTiempoRespuesta() : "-");
+            Object retorno = (p.getTiempoRetorno() >= 0 ? p.getTiempoRetorno() : "-");
+
+            modeloTablaProcesos.addRow(new Object[]{
+                    p.getId(),
+                    p.getPrioridad(),
+                    p.getTiempoLlegada(),
+                    inicio,
+                    p.getRafagaRestante(),
+                    p.getTiempoEsperaActual(),
+                    resp,
+                    retorno,
+                    estado
+            });
+        }
+    }
+
+    // busca si el proceso p es el actual de algún CPU (devuelve el objeto si lo encuentra)
+    private Proceso encontrarProcesoEnCPUs(Proceso buscado) {
+        for (Procesador cpu : plan.getCpus()) {
+            Proceso actual = cpu.getProcesoActual();
+            if (actual != null && actual == buscado) return actual;
+        }
+        return null;
     }
 }
