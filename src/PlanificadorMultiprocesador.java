@@ -8,20 +8,17 @@ import java.util.Set;
 public class PlanificadorMultiprocesador {
 
     private final List<Procesador> cpus;
-    private final Object tickLock = new Object(); // lock compartido para ticks
+    private final Object tickLock = new Object();
     private volatile boolean relojEjecutando = false;
     private Thread hiloReloj = null;
 
-    // memoria
     private final AdministradorMemoria memManager;
-    // procesos que no pudieron entrar por falta de espacio contiguo
     private final List<Proceso> suspendidos = new ArrayList<>();
 
     public List<Procesador> getCpus() {
         return cpus;
     }
 
-    // constructor: num CPUs, quantum, y RAM por defecto 8192 KB (8 MB)
     public PlanificadorMultiprocesador(int numProcesadores, int quantum) {
         this(numProcesadores, quantum, 8 * 1024);
     }
@@ -30,12 +27,10 @@ public class PlanificadorMultiprocesador {
         cpus = new ArrayList<>();
         this.memManager = new AdministradorMemoria(ramTotalKB);
 
-        // crear CPUs
         for (int i = 0; i < numProcesadores; i++) {
             cpus.add(new Procesador(i, quantum, tickLock));
         }
 
-        // establecer referencia al planificador en cada CPU (para permitir robo)
         for (Procesador cpu : cpus) {
             cpu.setPlanificador(this);
         }
@@ -49,75 +44,68 @@ public class PlanificadorMultiprocesador {
     private boolean pausado = false;
     private final Object pausaLock = new Object();
 
-
-public void iniciar() {
-
-    if (!cpusIniciadas) {
-        for (Procesador cpu : cpus) {
-            cpu.start();         
+    public void iniciar() {
+        if (!cpusIniciadas) {
+            for (Procesador cpu : cpus) {
+                cpu.start();         
+            }
+            cpusIniciadas = true;
         }
-        cpusIniciadas = true;
-    }
 
+        if (hiloReloj == null) {
+            relojEjecutando = true;
 
-    if (hiloReloj == null) {
-        relojEjecutando = true;
+            hiloReloj = new Thread(() -> {
+                System.out.println("Reloj global iniciando...");
 
-        hiloReloj = new Thread(() -> {
-            System.out.println("Reloj global iniciando...");
-
-            while (relojEjecutando) {
-
-                // reloj pausado → esperar
-                synchronized (pausaLock) {
-                    while (pausado) {
-                        try {
-                            pausaLock.wait();
-                        } catch (InterruptedException e) {
-                            // ignorar
+                while (relojEjecutando) {
+                    synchronized (pausaLock) {
+                        while (pausado) {
+                            try {
+                                pausaLock.wait();
+                            } catch (InterruptedException e) {
+                                // ignorar
+                            }
                         }
+                    }
+
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        if (!relojEjecutando) break;
+                    }
+
+                    TiempoGlobal.tick();
+
+                    // Intentar reactivar suspendidos en cada tick
+                    intentarReactivarSuspendidos();
+
+                    synchronized (tickLock) {
+                        tickLock.notifyAll();
                     }
                 }
 
-                try {
-                    Thread.sleep(1000); // 1 tick por segundo
-                } catch (InterruptedException e) {
-                    if (!relojEjecutando) break;
-                }
+                System.out.println("Reloj global detenido.");
+            }, "Hilo-Reloj");
 
-                // avanzar tiempo
-                TiempoGlobal.tick();
-
-                synchronized (tickLock) {
-                    tickLock.notifyAll();
-                }
-            }
-
-            System.out.println("Reloj global detenido.");
-        }, "Hilo-Reloj");
-
-        hiloReloj.start();
+            hiloReloj.start();
+        }
     }
-}
 
     public void detener() {
-        // detener reloj primero
         relojEjecutando = false;
         if (hiloReloj != null) {
             hiloReloj.interrupt();
         }
 
-        // notificar para despertar a CPUs y que puedan terminar
         synchronized (tickLock) {
             tickLock.notifyAll();
         }
 
-        // detener CPUs
         for (Procesador cpu : cpus) {
             cpu.detener();
         }
 
-        // esperar que terminen (opcional)
         for (Procesador cpu : cpus) {
             try {
                 cpu.join(2000);
@@ -132,17 +120,13 @@ public void iniciar() {
         }
     }
 
-    // Reparto REAL: CPU con menos carga total (incluye procesos en colas y posible actual)
     public void agregarProceso(Proceso p) {
-        // fijar llegada
         int llegada = TiempoGlobal.get();
         p.setTiempoLlegada(llegada);
 
-        // intentar asignar memoria (Best Fit)
         boolean memOk = memManager.asignarBestFit(p);
 
         if (!memOk) {
-            // suspender por falta de memoria contigua
             synchronized (suspendidos) {
                 p.cambiarEstado(Proceso.Estado.SUSPENDIDO);
                 suspendidos.add(p);
@@ -151,7 +135,6 @@ public void iniciar() {
             return;
         }
 
-        // asignar a CPU con menos carga
         Procesador cpuMenosCarga = cpus.get(0);
         for (Procesador cpu : cpus) {
             if (cpu.getCarga() < cpuMenosCarga.getCarga()) {
@@ -162,36 +145,40 @@ public void iniciar() {
         cpuMenosCarga.agregarProceso(p);
     }
 
-    // llamado por Procesador cuando un proceso termina para liberar memoria
     public void procesoTerminado(Proceso p) {
-        // liberar memoria
         memManager.liberar(p);
+        // No intentar reactivar aquí, se hace en el hilo del reloj
+    }
 
-        // intentar cargar suspendidos (FIFO)
+    // Método separado que se llama desde el hilo del reloj
+    private void intentarReactivarSuspendidos() {
+        List<Proceso> porReactivar = new ArrayList<>();
+        
         synchronized (suspendidos) {
-            List<Proceso> porCargar = new ArrayList<>(suspendidos);
-            for (Proceso s : porCargar) {
+            for (Proceso s : new ArrayList<>(suspendidos)) {
                 boolean ok = memManager.asignarBestFit(s);
                 if (ok) {
                     s.cambiarEstado(Proceso.Estado.LISTO);
-                    // asignar a CPU menos cargado
-                    Procesador cpuMenosCarga = cpus.get(0);
-                    for (Procesador cpu : cpus) {
-                        if (cpu.getCarga() < cpuMenosCarga.getCarga()) {
-                            cpuMenosCarga = cpu;
-                        }
-                    }
-                    cpuMenosCarga.agregarProceso(s);
+                    porReactivar.add(s);
                     suspendidos.remove(s);
                     System.out.println("P" + s.getId() + " reactivado desde suspendidos (mem disponible)");
                 }
             }
         }
+
+        // Asignar fuera del bloque sincronizado de suspendidos
+        for (Proceso s : porReactivar) {
+            Procesador cpuMenosCarga = cpus.get(0);
+            for (Procesador cpu : cpus) {
+                if (cpu.getCarga() < cpuMenosCarga.getCarga()) {
+                    cpuMenosCarga = cpu;
+                }
+            }
+            cpuMenosCarga.agregarProceso(s);
+        }
     }
 
-    //  WORK STEALING: intentar robar para el CPU 'thief' 
     public Proceso intentarRobar(Procesador thief) {
-        // elegir CPU más cargado distinto de thief
         Procesador origen = null;
         int maxCarga = 0;
         for (Procesador cpu : cpus) {
@@ -205,7 +192,6 @@ public void iniciar() {
 
         if (origen == null || maxCarga == 0) return null;
 
-        // pedir a la RR del origen que extraiga un proceso para robo
         Proceso p = origen.rr.extraerProcesoParaRobo();
         return p;
     }
@@ -218,25 +204,19 @@ public void iniciar() {
         return r;
     }
 
-    
-    //   Devuelve una lista con los procesos activos listos o ejecutando encontrados recorriendo los CPUs y sus colas.
-    
     public List<Proceso> getProcesosActivos() {
         Set<Proceso> set = new HashSet<>();
 
         for (Procesador cpu : cpus) {
-            // proceso actual
             Proceso actual = cpu.getProcesoActual();
             if (actual != null) set.add(actual);
 
-            // colas snapshot
             Map<Integer, java.util.List<Proceso>> snap = cpu.getColasSnapshot();
             for (java.util.List<Proceso> q : snap.values()) {
                 set.addAll(q);
             }
         }
 
-        // también incluir suspendidos (opcional)
         synchronized (suspendidos) {
             set.addAll(suspendidos);
         }
@@ -244,8 +224,6 @@ public void iniciar() {
         return new ArrayList<>(set);
     }
 
-    // Crear proceso desde la interfaz gráfica
-   
     public void agregarProcesoNuevo(String idStr, int prioridad, int llegada, int cpu, int memKB) {
         int id;
         try {
@@ -254,23 +232,20 @@ public void iniciar() {
             throw new IllegalArgumentException("El ID debe ser numérico.");
         }
 
-        // Crear proceso (llegada se ajustará por agregarProceso)
         Proceso p = new Proceso(id, prioridad, llegada, cpu, memKB);
-
-        agregarProceso(p); // usa tu lógica existente
+        agregarProceso(p);
     }
 
     public void pausar() {
-    synchronized (pausaLock) {
-        pausado = true;
+        synchronized (pausaLock) {
+            pausado = true;
+        }
     }
-}
 
-public void reanudar() {
-    synchronized (pausaLock) {
-        pausado = false;
-        pausaLock.notifyAll();
+    public void reanudar() {
+        synchronized (pausaLock) {
+            pausado = false;
+            pausaLock.notifyAll();
+        }
     }
-}
-
 }
