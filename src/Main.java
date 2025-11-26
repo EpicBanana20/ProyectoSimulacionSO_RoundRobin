@@ -29,7 +29,7 @@ public class Main {
         TiempoGlobal.reset();
 
         // ejemplo: 6 CPUs, quantum 4, RAM 16MB (opc)
-        PlanificadorMultiprocesador plan = new PlanificadorMultiprocesador(6, 4, 16 * 1024);
+        PlanificadorMultiprocesador plan = new PlanificadorMultiprocesador(3, 4, 1 * 1024);
 
         plan.iniciar(); // arranca CPUs + reloj
 
@@ -86,7 +86,7 @@ public class Main {
         }
 
         // ------------------------------------------------------------
-        // 🔥 ESTADÍSTICAS FINALES
+        // ESTADÍSTICAS FINALES
         // ------------------------------------------------------------
 
         System.out.println("\n=== ESTADÍSTICAS DE PROCESOS ===");

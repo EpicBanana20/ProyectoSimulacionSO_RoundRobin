@@ -18,18 +18,36 @@ public class RoundRobin {
         this.colasListos = new TreeMap<>(); // orden ascendente de prioridad numérica
     }
 
-    // Agregar proceso (thread-safe)
+    // Agregar proceso 
     public synchronized void agregarProceso(Proceso p) {
         colasListos.putIfAbsent(p.getPrioridad(), new LinkedList<>());
         p.cambiarEstado(Proceso.Estado.LISTO);
         colasListos.get(p.getPrioridad()).add(p);
+        
     }
 
-    // Devuelve la cantidad total de procesos en las colas + el actual (si existe)
+    // Devuelve la cantidad total de procesos en las colas + el actual si existe
     public synchronized int getCantidadProcesos() {
-        int total = (actual != null && actual.getEstado() != Proceso.Estado.TERMINADO ? 1 : 0);
-        for (Queue<Proceso> q : colasListos.values()) total += q.size();
-        return total;
+       int total = 0;
+
+    // contar proceso actual si no ha terminado ni esta suspendido
+    if (actual != null &&
+        actual.getEstado() != Proceso.Estado.TERMINADO &&
+        actual.getEstado() != Proceso.Estado.SUSPENDIDO) {
+        total = 1;
+    }
+
+    // contar solo los procesos válidos en colas
+    for (Queue<Proceso> q : colasListos.values()) {
+        for (Proceso p : q) {
+            if (p.getEstado() != Proceso.Estado.SUSPENDIDO &&
+                p.getEstado() != Proceso.Estado.TERMINADO) {
+                total++;
+            }
+        }
+    }
+
+    return total;
     }
 
     // Selecciona el siguiente proceso de las colas por prioridad (si actual == null)

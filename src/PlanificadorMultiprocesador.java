@@ -45,34 +45,61 @@ public class PlanificadorMultiprocesador {
         return memManager;
     }
 
-    public void iniciar() {
-        // iniciar CPUs
-        for (Procesador cpu : cpus) {
-            cpu.start();
-        }
+    private boolean cpusIniciadas = false;
+    private boolean pausado = false;
+    private final Object pausaLock = new Object();
 
-        // iniciar reloj global (un único hilo que avanza el tiempo y notifica a todos)
+
+public void iniciar() {
+
+    // --- INICIAR CPUs SOLO LA PRIMER VEZ ---
+    if (!cpusIniciadas) {
+        for (Procesador cpu : cpus) {
+            cpu.start();          // SE INICIA UNA SOLA VEZ
+        }
+        cpusIniciadas = true;
+    }
+
+    // --- INICIAR RELOJ GLOBAL SOLO SI NO EXISTE ---
+    if (hiloReloj == null) {
         relojEjecutando = true;
+
         hiloReloj = new Thread(() -> {
             System.out.println("Reloj global iniciando...");
+
             while (relojEjecutando) {
+
+                // reloj pausado → esperar
+                synchronized (pausaLock) {
+                    while (pausado) {
+                        try {
+                            pausaLock.wait();
+                        } catch (InterruptedException e) {
+                            // ignorar
+                        }
+                    }
+                }
+
                 try {
-                    Thread.sleep(1000); // duración de un tick (1s). Ajusta si quieres más rápido.
+                    Thread.sleep(1000); // 1 tick por segundo
                 } catch (InterruptedException e) {
                     if (!relojEjecutando) break;
                 }
 
-                // Avanzar tiempo global una vez por tick y notificar a los CPUs
+                // avanzar tiempo
                 TiempoGlobal.tick();
 
                 synchronized (tickLock) {
                     tickLock.notifyAll();
                 }
             }
+
             System.out.println("Reloj global detenido.");
         }, "Hilo-Reloj");
+
         hiloReloj.start();
     }
+}
 
     public void detener() {
         // detener reloj primero
@@ -218,4 +245,35 @@ public class PlanificadorMultiprocesador {
 
         return new ArrayList<>(set);
     }
+
+        // -----------------------------------------------------
+    // Crear proceso desde la interfaz gráfica
+    // -----------------------------------------------------
+    public void agregarProcesoNuevo(String idStr, int prioridad, int llegada, int cpu, int memKB) {
+        int id;
+        try {
+            id = Integer.parseInt(idStr);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("El ID debe ser numérico.");
+        }
+
+        // Crear proceso (llegada se ajustará por agregarProceso)
+        Proceso p = new Proceso(id, prioridad, llegada, cpu, memKB);
+
+        agregarProceso(p); // usa tu lógica existente
+    }
+
+    public void pausar() {
+    synchronized (pausaLock) {
+        pausado = true;
+    }
+}
+
+public void reanudar() {
+    synchronized (pausaLock) {
+        pausado = false;
+        pausaLock.notifyAll();
+    }
+}
+
 }
