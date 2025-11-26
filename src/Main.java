@@ -1,15 +1,24 @@
 /* File: Main.java */
 import java.util.List;
 import java.util.Scanner;
+import javax.swing.SwingUtilities;
 
 public class Main {
 
     public static void main(String[] args) {
 
-        PlanificadorMultiprocesador plan =
-                new PlanificadorMultiprocesador(2, 4); // 2 CPUs, quantum 4
+        // Reiniciar tiempo global (por si se ejecutó antes en la misma JVM)
+        TiempoGlobal.reset();
 
-        plan.iniciar();  // arranca CPUs en background
+        PlanificadorMultiprocesador plan =
+                new PlanificadorMultiprocesador(2, 4); // 2 CPUs, quantum 4 (quantum aquí es por nivel base)
+
+        plan.iniciar();  // arranca CPUs + reloj
+
+        // Lanzar GUI en Swing (ventana aparte)
+        SwingUtilities.invokeLater(() -> {
+            new InterfaSim(plan);
+        });
 
         Scanner sc = new Scanner(System.in);
         int id = 1;
@@ -38,11 +47,12 @@ public class Main {
                     int prioridad = Integer.parseInt(p[1]);
                     int cpu = Integer.parseInt(p[2]);
 
-                    Proceso nuevo = new Proceso(id++, prioridad, -1, cpu); // llegada la pondrá el planificador
+                    Proceso nuevo = new Proceso(id++, prioridad, -1, cpu); // llegada la fijará el planificador
                     plan.agregarProceso(nuevo);
 
-                    System.out.println("Proceso agregado: " + nuevo.getId() +
-                                       " (prio=" + prioridad + ", cpu=" + cpu + ")");
+                    System.out.println("Proceso agregado: P" + nuevo.getId() +
+                                       " (prio=" + prioridad + ", cpu=" + cpu +
+                                       ", llegada=" + nuevo.getTiempoLlegada() + ")");
                 } catch (Exception e) {
                     System.out.println("Formato inválido. Usa: add prioridad tiempoCPU");
                 }

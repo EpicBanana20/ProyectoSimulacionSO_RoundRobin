@@ -9,15 +9,15 @@ public class Proceso {
         TERMINADO
     }
 
-    private int id;
+    private final int id;
     private int prioridad;
 
-    private int tiempoLlegada;
+    private int tiempoLlegada; // asignado por el planificador al agregar
     private int tiempoInicio;
     private int tiempoFin;
 
-    private int tiempoCPU; // ráfaga total requerida
-    private int tiempoRestante; // para Round Robin
+    private final int tiempoCPU; // ráfaga total requerida
+    private int tiempoRestante; // para RR
 
     private Estado estado;
 
@@ -91,12 +91,10 @@ public class Proceso {
     }
 
     public void cambiarEstado(Estado nuevoEstado) {
-        //System.out.println("Proceso " + id + ": " + estado + " → " + nuevoEstado);
         this.estado = nuevoEstado;
     }
 
-
-    // ======== TIEMPOS DERIVADOS PARA ROUND ROBIN ========
+    // TIEMPOS DERIVADOS
 
     // Tiempo de respuesta = inicio - llegada
     public int getTiempoRespuesta() {
@@ -119,18 +117,6 @@ public class Proceso {
 
     @Override
     public String toString() {
-        return "Proceso { " +
-                "ID=" + id +
-                ", Prioridad=" + prioridad +
-                ", Estado=" + estado +
-                ", Llegada=" + tiempoLlegada +
-                ", Inicio=" + tiempoInicio +
-                ", Fin=" + tiempoFin +
-                ", CPU=" + tiempoCPU +
-                ", Restante=" + tiempoRestante +
-                ", Respuesta=" + getTiempoRespuesta() +
-                ", Espera=" + getTiempoEspera() +
-                ", Retorno=" + getTiempoRetorno() +
-                " }";
+        return "P" + id + "(R=" + tiempoRestante + ",Pr=" + prioridad + ")";
     }
 }

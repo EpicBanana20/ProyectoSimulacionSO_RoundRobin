@@ -3,146 +3,119 @@ import java.util.*;
 
 public class RoundRobin {
 
-    // Colas organizadas por prioridad (clave = prioridad, cola FIFO)
+    // Multicolas por prioridad (clave: prioridad → cola FIFO)
     private final NavigableMap<Integer, Queue<Proceso>> colasListos;
-    private java.util.function.Consumer<Proceso> onFinishListener;
-
     private final int quantum;
-    private int tiempoGlobal;
 
-    private int cpuId = -1;
+    // Proceso actualmente en ejecución (si lo hay) y ticks que ya le dimos en su quantum
+    private Proceso actual = null;
+    private int ticksEnQuantum = 0;
 
-    // Para reportar cuántos ticks se avanzaron en la última llamada
-    private int ultimoTicksAvanzados = 0;
-    private int ultimoTicksTrabajados = 0;
+    private java.util.function.Consumer<Proceso> onFinishListener;
 
     public RoundRobin(int quantum) {
         this.quantum = quantum;
-        this.colasListos = new TreeMap<>(); // orden ascendente de claves
-        this.tiempoGlobal = 0;
+        this.colasListos = new TreeMap<>(); // orden ascendente de prioridad numérica
     }
 
-    public void setCpuId(int id) {
-        this.cpuId = id;
-    }
-
-    // thread-safe: varios hilos pueden agregar procesos
+    // Agregar proceso (thread-safe)
     public synchronized void agregarProceso(Proceso p) {
         colasListos.putIfAbsent(p.getPrioridad(), new LinkedList<>());
         p.cambiarEstado(Proceso.Estado.LISTO);
         colasListos.get(p.getPrioridad()).add(p);
     }
 
-    private synchronized Proceso obtenerSiguienteProceso() {
-        for (Queue<Proceso> cola : colasListos.values()) {
-            if (!cola.isEmpty())
-                return cola.poll();
-        }
-        return null;
-    }
-
-    private synchronized boolean hayProcesosPendientes() {
-        return colasListos.values().stream().anyMatch(q -> !q.isEmpty());
-    }
-
+    // Devuelve la cantidad total de procesos en las colas + el actual (si existe)
     public synchronized int getCantidadProcesos() {
-        int total = 0;
-        for (Queue<Proceso> q : colasListos.values())
-            total += q.size();
+        int total = (actual != null && actual.getEstado() != Proceso.Estado.TERMINADO ? 1 : 0);
+        for (Queue<Proceso> q : colasListos.values()) total += q.size();
         return total;
     }
 
-    // Ejecuta hasta un quantum (o menos si proceso termina).
-    // Retorna un arreglo [ticksAvanzados, ticksTrabajados]
-    public int[] ejecutarTick() {
-        // reset de contadores de la llamada
-        ultimoTicksAvanzados = 0;
-        ultimoTicksTrabajados = 0;
-
-        Proceso actual = null;
-
-        synchronized (this) {
-            actual = obtenerSiguienteProceso();
+    // Selecciona el siguiente proceso de las colas por prioridad (si actual == null)
+    private synchronized void seleccionarSiguienteSiNecesario() {
+        if (actual != null) return;
+        for (Queue<Proceso> cola : colasListos.values()) {
+            if (!cola.isEmpty()) {
+                actual = cola.poll();
+                ticksEnQuantum = 0;
+                return;
+            }
         }
+    }
+
+    // Ejecutar exactamente 1 tick para este RoundRobin (llamado por la CPU en cada tick global).
+    // Retorna true si se hizo trabajo (se consumió 1 unidad CPU) o false si idle.
+    public synchronized boolean ejecutarUnTick() {
+
+        seleccionarSiguienteSiNecesario();
 
         if (actual == null) {
-            // sin trabajo: avanzamos tiempo global 1 tick y dormimos un poco
-            try {
-                Thread.sleep(1000); // 100 ms por tick (puedes ajustar)
-                System.out.println("[CPU " + cpuId + "] Idle | TiempoGlobal=" + tiempoGlobal);
-            } catch (InterruptedException ignored) {
-            }
-            tiempoGlobal++;
-            ultimoTicksAvanzados = 1;
-            return new int[]{ultimoTicksAvanzados, ultimoTicksTrabajados};
+            // idle - nada que hacer
+            return false;
         }
+
+        // si es la primera vez que ejecuta, fijar tiempo inicio
+        if (actual.getTiempoInicio() == -1) {
+            actual.setTiempoInicio(TiempoGlobal.get());
+        }
+
+        // ejecutar 1 tick
+        actual.consumirCPU(1);
+        ticksEnQuantum++;
 
         actual.cambiarEstado(Proceso.Estado.EJECUTANDO);
 
-        if (actual.getTiempoInicio() == -1) {
-            actual.setTiempoInicio(tiempoGlobal);
+        // si terminó
+        if (actual.getTiempoRestante() == 0) {
+            actual.setTiempoFin(TiempoGlobal.get());
+            actual.cambiarEstado(Proceso.Estado.TERMINADO);
+            // notificar terminado
+            if (onFinishListener != null) {
+                onFinishListener.accept(actual);
+            }
+            // limpiar actual
+            actual = null;
+            ticksEnQuantum = 0;
+            return true;
         }
 
-        // Ejecutar hasta quantum ticks o hasta que termine
-        int ticksHechosParaEsteProceso = 0;
-        for (int i = 0; i < quantum; i++) {
-            // consumir 1 unidad (un tick)
-            actual.consumirCPU(1);
-            ticksHechosParaEsteProceso++;
-            ultimoTicksTrabajados++;
-            tiempoGlobal++;
-
-            System.out.println("[CPU " + cpuId + "] Ejecutando P" + actual.getId() +
-                    " | Restante=" + actual.getTiempoRestante() +
-                    " | TiempoGlobal=" + tiempoGlobal);
-
-            // si terminó, marcar terminado
-            if (actual.getTiempoRestante() == 0) {
-                actual.setTiempoFin(tiempoGlobal);
-                actual.cambiarEstado(Proceso.Estado.TERMINADO);
-                // terminado fuera de las colas (no reinsertamos)
-                if (onFinishListener != null) {
-                    onFinishListener.accept(actual);
-                }
-                break;
-            }
-
-            // dormir 1 tick real antes de siguiente unidad
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ignored) {
-            }
-        }
-
-        ultimoTicksAvanzados = ticksHechosParaEsteProceso;
-
-        // si NO terminó, volver a poner al final de su cola (misma prioridad)
-        if (actual.getTiempoRestante() > 0) {
+        // si alcanzó su quantum y no terminó, reinsertar al final de su cola
+        if (ticksEnQuantum >= quantum) {
             actual.cambiarEstado(Proceso.Estado.LISTO);
-            synchronized (this) {
-                colasListos.putIfAbsent(actual.getPrioridad(), new LinkedList<>());
-                colasListos.get(actual.getPrioridad()).add(actual);
-            }
+            colasListos.putIfAbsent(actual.getPrioridad(), new LinkedList<>());
+            colasListos.get(actual.getPrioridad()).add(actual);
+            actual = null;
+            ticksEnQuantum = 0;
         }
 
-        return new int[]{ultimoTicksAvanzados, ultimoTicksTrabajados};
-    }
-
-    // getter del tiempo global si lo necesitas
-    public int getTiempoGlobal() {
-        return tiempoGlobal;
+        return true;
     }
 
     public void setOnFinishListener(java.util.function.Consumer<Proceso> listener) {
         this.onFinishListener = listener;
     }
 
-    // accesores para los contadores del último tick (opcional)
-    public int getUltimoTicksAvanzados() {
-        return ultimoTicksAvanzados;
+    // -----------------------
+    // Métodos para la GUI
+    // -----------------------
+
+    // Devuelve un snapshot (copia) de las colas listo por prioridad
+    public synchronized Map<Integer, List<Proceso>> getColasSnapshot() {
+        Map<Integer, List<Proceso>> snap = new TreeMap<>();
+        for (Map.Entry<Integer, Queue<Proceso>> e : colasListos.entrySet()) {
+            snap.put(e.getKey(), new ArrayList<>(e.getValue()));
+        }
+        return snap;
     }
 
-    public int getUltimoTicksTrabajados() {
-        return ultimoTicksTrabajados;
+    // Devuelve el proceso actual (puede ser null)
+    public synchronized Proceso getProcesoActual() {
+        return actual;
+    }
+
+    // Devuelve cuanto lleva ejecutado en el quantum actual (útil si quieres mostrar)
+    public synchronized int getTicksEnQuantum() {
+        return ticksEnQuantum;
     }
 }
