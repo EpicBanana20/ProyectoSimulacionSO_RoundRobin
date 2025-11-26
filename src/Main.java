@@ -1,3 +1,4 @@
+
 /* File: Main.java */
 import java.util.List;
 import java.util.Scanner;
@@ -10,10 +11,9 @@ public class Main {
         // Reiniciar tiempo global (por si se ejecutó antes en la misma JVM)
         TiempoGlobal.reset();
 
-        PlanificadorMultiprocesador plan =
-                new PlanificadorMultiprocesador(2, 4); // 2 CPUs, quantum 4 (base)
+        PlanificadorMultiprocesador plan = new PlanificadorMultiprocesador(2, 4); // 2 CPUs, quantum 4 (base)
 
-        plan.iniciar();  // arranca CPUs + reloj
+        plan.iniciar(); // arranca CPUs + reloj
 
         // Lanzar GUI en Swing (ventana aparte)
         SwingUtilities.invokeLater(() -> {
@@ -42,7 +42,8 @@ public class Main {
             if (linea.trim().toLowerCase().startsWith("add")) {
                 try {
                     String[] p = linea.trim().split("\\s+");
-                    if (p.length < 3) throw new IllegalArgumentException();
+                    if (p.length < 3)
+                        throw new IllegalArgumentException();
 
                     int prioridad = Integer.parseInt(p[1]);
                     int cpu = Integer.parseInt(p[2]);
@@ -51,8 +52,8 @@ public class Main {
                     plan.agregarProceso(nuevo);
 
                     System.out.println("Proceso agregado: P" + nuevo.getId() +
-                                       " (prio=" + prioridad + ", cpu=" + cpu +
-                                       ", llegada=" + nuevo.getTiempoLlegada() + ")");
+                            " (prio=" + prioridad + ", cpu=" + cpu +
+                            ", llegada=" + nuevo.getTiempoLlegada() + ")");
                 } catch (Exception e) {
                     System.out.println("Formato inválido. Usa: add prioridad tiempoCPU");
                 }
@@ -72,14 +73,13 @@ public class Main {
 
         for (Proceso p : terminados) {
             System.out.println(
-                "P" + p.getId() +
-                " | Resp=" + p.getTiempoRespuesta() +
-                " | Espera=" + p.getTiempoEspera() +
-                " | Retorno=" + p.getTiempoRetorno() +
-                " | Llegada=" + p.getTiempoLlegada() +
-                " | Inicio=" + p.getTiempoInicio() +
-                " | Fin=" + p.getTiempoFin()
-            );
+                    "P" + p.getId() +
+                            " | Resp=" + p.getTiempoRespuesta() +
+                            " | Espera=" + p.getTiempoEspera() +
+                            " | Retorno=" + p.getTiempoRetorno() +
+                            " | Llegada=" + p.getTiempoLlegada() +
+                            " | Inicio=" + p.getTiempoInicio() +
+                            " | Fin=" + p.getTiempoFin());
         }
 
         System.out.println("\n=== USO DEL CPU ===");
@@ -94,6 +94,20 @@ public class Main {
             System.out.printf("CPU %d: %.2f%% (trabajo=%d, ticks=%d)\n",
                     i++, uso, usados, total);
         }
+
+        double sumaUsos = 0;
+        int cantidadCPUs = plan.getCpus().size();
+
+        for (Procesador cpu : plan.getCpus()) {
+            long usados = cpu.getTicksEjecutados();
+            long total = cpu.getTicksTotales();
+            double uso = (total == 0 ? 0 : (100.0 * usados / total));
+            sumaUsos += uso;
+        }
+
+        double usoPromedio = (cantidadCPUs == 0 ? 0 : sumaUsos / cantidadCPUs);
+
+        System.out.printf("\nUso promedio del CPU: %.2f%%\n", usoPromedio);
 
         System.out.println("\nPrograma finalizado.");
     }
