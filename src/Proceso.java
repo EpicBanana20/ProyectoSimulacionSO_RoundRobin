@@ -21,7 +21,14 @@ public class Proceso {
 
     private Estado estado;
 
+    // nuevo: tamaño de memoria en KB
+    private final int tamMemoriaKB;
+
     public Proceso(int id, int prioridad, int tiempoLlegada, int tiempoCPU) {
+        this(id, prioridad, tiempoLlegada, tiempoCPU, 0);
+    }
+
+    public Proceso(int id, int prioridad, int tiempoLlegada, int tiempoCPU, int tamMemoriaKB) {
         this.id = id;
         this.prioridad = prioridad;
         this.tiempoLlegada = tiempoLlegada;
@@ -31,7 +38,11 @@ public class Proceso {
         this.estado = Estado.NUEVO;
         this.tiempoInicio = -1;
         this.tiempoFin = -1;
+
+        this.tamMemoriaKB = Math.max(0, tamMemoriaKB);
     }
+
+    // ... getters previos ...
 
     public int getId() {
         return id;
@@ -94,49 +105,23 @@ public class Proceso {
         this.estado = nuevoEstado;
     }
 
-    // ======= NUEVOS GETTERS / AYUDAS PARA LA GUI EN TIEMPO REAL =======
-
-    // Alias descriptivo
-    public int getRafagaRestante() {
-        return tiempoRestante;
+    // ===== memoria =====
+    public int getTamMemoriaKB() {
+        return tamMemoriaKB;
     }
 
-    // Tiempo ejecutado hasta ahora
-    public int getTiempoEjecutado() {
-        return tiempoCPU - tiempoRestante;
-    }
+    // ===== tiempos derivados (igual que antes) =====
 
-    /**
-     * Tiempo de espera "actual" hasta el tiempo global:
-     * aproximación = tiempo global - llegada - tiempo ejecutado
-     * Si terminó, devuelve el tiempo de espera final (getTiempoEspera()).
-     */
-    public int getTiempoEsperaActual() {
-        if (tiempoFin != -1) {
-            // ya terminado: retorna la espera final conocida
-            return getTiempoEspera();
-        }
-        int ejecutado = getTiempoEjecutado();
-        int ahora = TiempoGlobal.get();
-        int espera = ahora - tiempoLlegada - ejecutado;
-        return Math.max(espera, 0);
-    }
-
-    // TIEMPOS DERIVADOS
-
-    // Tiempo de respuesta = inicio - llegada
     public int getTiempoRespuesta() {
         if (tiempoInicio == -1 || tiempoLlegada == -1) return -1;
         return tiempoInicio - tiempoLlegada;
     }
 
-    // Tiempo de retorno = fin - llegada
     public int getTiempoRetorno() {
         if (tiempoFin == -1 || tiempoLlegada == -1) return -1;
         return tiempoFin - tiempoLlegada;
     }
 
-    // Tiempo de espera = retorno - CPU total
     public int getTiempoEspera() {
         int retorno = getTiempoRetorno();
         if (retorno == -1) return -1;
@@ -145,6 +130,6 @@ public class Proceso {
 
     @Override
     public String toString() {
-        return "P" + id + "(R=" + tiempoRestante + ",Pr=" + prioridad + ")";
+        return "P" + id + "(R=" + tiempoRestante + ",Pr=" + prioridad + ",M=" + tamMemoriaKB + "KB)";
     }
 }

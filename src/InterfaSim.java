@@ -17,11 +17,14 @@ public class InterfaSim extends JFrame {
     private JTable tablaProcesos;
     private DefaultTableModel modeloTablaProcesos;
 
+    // area memoria
+    private final JTextArea areaMemoria;
+
     public InterfaSim(PlanificadorMultiprocesador plan) {
         this.plan = plan;
 
         setTitle("Simulador - Visor de procesos");
-        setSize(900, 600);
+        setSize(1000, 700);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -29,7 +32,7 @@ public class InterfaSim extends JFrame {
         lblTiempo.setFont(new Font("SansSerif", Font.BOLD, 16));
         add(lblTiempo, BorderLayout.NORTH);
 
-        JPanel centro = new JPanel(new GridLayout(1, 2));
+        JPanel centro = new JPanel(new GridLayout(1, 3));
         areaCPUs = new JTextArea();
         areaCPUs.setEditable(false);
         areaCPUs.setFont(new Font("Monospaced", Font.PLAIN, 12));
@@ -37,13 +40,18 @@ public class InterfaSim extends JFrame {
         areaColas.setEditable(false);
         areaColas.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
+        areaMemoria = new JTextArea();
+        areaMemoria.setEditable(false);
+        areaMemoria.setFont(new Font("Monospaced", Font.PLAIN, 12));
+
         centro.add(new JScrollPane(areaCPUs));
         centro.add(new JScrollPane(areaColas));
+        centro.add(new JScrollPane(areaMemoria));
 
         add(centro, BorderLayout.CENTER);
 
         // --- tabla de procesos (sur) ---
-        String[] cols = {"ID", "Prio", "Llegada", "Inicio", "CPU Rest", "Espera", "Respuesta", "Retorno", "Estado"};
+        String[] cols = {"ID", "Prio", "Llegada", "Inicio", "CPU Rest", "Espera", "Respuesta", "Retorno", "Estado", "Mem(KB)"};
         modeloTablaProcesos = new DefaultTableModel(cols, 0) {
             // no editable
             @Override
@@ -102,6 +110,16 @@ public class InterfaSim extends JFrame {
 
         areaColas.setText(sbColas.toString());
 
+        // area memoria: snapshot
+        StringBuilder sbMem = new StringBuilder();
+        List<AdministradorMemoria.Bloque> blks = plan.getMemManager().getSnapshot();
+        sbMem.append(String.format("Memoria total: %d KB | Ocupado: %d KB\n\n",
+                plan.getMemManager().getTamTotalKB(), plan.getMemManager().getOcupadoKB()));
+        for (AdministradorMemoria.Bloque b : blks) {
+            sbMem.append(b.toString()).append("\n");
+        }
+        areaMemoria.setText(sbMem.toString());
+
         // actualizar tabla de procesos en tiempo real
         actualizarTablaProcesos();
     }
@@ -145,11 +163,12 @@ public class InterfaSim extends JFrame {
                     p.getPrioridad(),
                     p.getTiempoLlegada(),
                     inicio,
-                    p.getRafagaRestante(),
-                    p.getTiempoEsperaActual(),
+                    p.getTiempoRestante(),
+                    p.getTiempoEspera(), // muestra espera final si terminó; si no, aproximación podría añadirse
                     resp,
                     retorno,
-                    estado
+                    estado,
+                    p.getTamMemoriaKB()
             });
         }
     }

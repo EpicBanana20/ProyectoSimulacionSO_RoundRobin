@@ -12,12 +12,23 @@ public class PlanificadorMultiprocesador {
     private volatile boolean relojEjecutando = false;
     private Thread hiloReloj = null;
 
+    // memoria
+    private final AdministradorMemoria memManager;
+    // procesos que no pudieron entrar por falta de espacio contiguo
+    private final List<Proceso> suspendidos = new ArrayList<>();
+
     public List<Procesador> getCpus() {
         return cpus;
     }
 
+    // constructor: num CPUs, quantum, y RAM por defecto 8192 KB (8 MB)
     public PlanificadorMultiprocesador(int numProcesadores, int quantum) {
+        this(numProcesadores, quantum, 8 * 1024);
+    }
+
+    public PlanificadorMultiprocesador(int numProcesadores, int quantum, int ramTotalKB) {
         cpus = new ArrayList<>();
+        this.memManager = new AdministradorMemoria(ramTotalKB);
 
         // crear CPUs
         for (int i = 0; i < numProcesadores; i++) {
@@ -28,6 +39,10 @@ public class PlanificadorMultiprocesador {
         for (Procesador cpu : cpus) {
             cpu.setPlanificador(this);
         }
+    }
+
+    public AdministradorMemoria getMemManager() {
+        return memManager;
     }
 
     public void iniciar() {
@@ -93,6 +108,24 @@ public class PlanificadorMultiprocesador {
 
     // Reparto REAL: CPU con menos carga total (incluye procesos en colas y posible actual)
     public void agregarProceso(Proceso p) {
+        // fijar llegada
+        int llegada = TiempoGlobal.get();
+        p.setTiempoLlegada(llegada);
+
+        // intentar asignar memoria (Best Fit)
+        boolean memOk = memManager.asignarBestFit(p);
+
+        if (!memOk) {
+            // suspender por falta de memoria contigua
+            synchronized (suspendidos) {
+                p.cambiarEstado(Proceso.Estado.SUSPENDIDO);
+                suspendidos.add(p);
+            }
+            System.out.println("P" + p.getId() + " suspendido por falta de memoria (tam=" + p.getTamMemoriaKB() + "KB)");
+            return;
+        }
+
+        // asignar a CPU con menos carga
         Procesador cpuMenosCarga = cpus.get(0);
         for (Procesador cpu : cpus) {
             if (cpu.getCarga() < cpuMenosCarga.getCarga()) {
@@ -100,11 +133,34 @@ public class PlanificadorMultiprocesador {
             }
         }
 
-        // asignar tiempo de llegada REAL usando el TiempoGlobal actual (mismo para todos)
-        int llegada = TiempoGlobal.get();
-        p.setTiempoLlegada(llegada);
-
         cpuMenosCarga.agregarProceso(p);
+    }
+
+    // llamado por Procesador cuando un proceso termina para liberar memoria
+    public void procesoTerminado(Proceso p) {
+        // liberar memoria
+        memManager.liberar(p);
+
+        // intentar cargar suspendidos (FIFO)
+        synchronized (suspendidos) {
+            List<Proceso> porCargar = new ArrayList<>(suspendidos);
+            for (Proceso s : porCargar) {
+                boolean ok = memManager.asignarBestFit(s);
+                if (ok) {
+                    s.cambiarEstado(Proceso.Estado.LISTO);
+                    // asignar a CPU menos cargado
+                    Procesador cpuMenosCarga = cpus.get(0);
+                    for (Procesador cpu : cpus) {
+                        if (cpu.getCarga() < cpuMenosCarga.getCarga()) {
+                            cpuMenosCarga = cpu;
+                        }
+                    }
+                    cpuMenosCarga.agregarProceso(s);
+                    suspendidos.remove(s);
+                    System.out.println("P" + s.getId() + " reactivado desde suspendidos (mem disponible)");
+                }
+            }
+        }
     }
 
     // --- WORK STEALING: intentar robar para el CPU 'thief' ---
@@ -153,6 +209,11 @@ public class PlanificadorMultiprocesador {
             for (java.util.List<Proceso> q : snap.values()) {
                 set.addAll(q);
             }
+        }
+
+        // también incluir suspendidos (opcional)
+        synchronized (suspendidos) {
+            set.addAll(suspendidos);
         }
 
         return new ArrayList<>(set);

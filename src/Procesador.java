@@ -17,7 +17,7 @@ public class Procesador extends Thread {
     // Lock compartido por el planificador/clock para sincronización de ticks
     private final Object tickLock;
 
-    // Referencia al planificador para solicitar robo de trabajo
+    // Referencia al planificador para solicitar robo de trabajo y notificar fin
     private PlanificadorMultiprocesador planificador;
 
     public Procesador(int id, int quantum, Object tickLock) {
@@ -25,17 +25,23 @@ public class Procesador extends Thread {
         this.rr = new RoundRobin(quantum);
         this.tickLock = tickLock;
 
-        // cuando un proceso termina, lo guardamos en la lista terminados
-        rr.setOnFinishListener(proceso -> {
-            synchronized (terminados) {
-                terminados.add(proceso);
-            }
-        });
+        // no fijamos listener aquí porque el planificador puede necesitarse para liberar memoria
+        // lo configuramos en setPlanificador(...) para que incluya ambas acciones.
     }
 
     // Setter para que el planificador establezca la referencia (se llama desde el planificador)
     public void setPlanificador(PlanificadorMultiprocesador plan) {
         this.planificador = plan;
+
+        // establecer listener que guarda en terminados y notifica al planificador
+        rr.setOnFinishListener(proceso -> {
+            synchronized (terminados) {
+                terminados.add(proceso);
+            }
+            if (planificador != null) {
+                planificador.procesoTerminado(proceso);
+            }
+        });
     }
 
     // delega al RoundRobin (thread-safe)

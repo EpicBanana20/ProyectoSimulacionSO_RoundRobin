@@ -1,4 +1,3 @@
-
 /* File: Main.java */
 import java.util.List;
 import java.util.Scanner;
@@ -6,12 +5,31 @@ import javax.swing.SwingUtilities;
 
 public class Main {
 
+    public static int parseMemKB(String token) {
+        if (token == null) return 0;
+        token = token.trim().toLowerCase();
+        try {
+            if (token.endsWith("kb")) {
+                return Integer.parseInt(token.substring(0, token.length() - 2).trim());
+            } else if (token.endsWith("mb")) {
+                int mb = Integer.parseInt(token.substring(0, token.length() - 2).trim());
+                return mb * 1024;
+            } else {
+                // asumimos número en KB
+                return Integer.parseInt(token);
+            }
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public static void main(String[] args) {
 
         // Reiniciar tiempo global (por si se ejecutó antes en la misma JVM)
         TiempoGlobal.reset();
 
-        PlanificadorMultiprocesador plan = new PlanificadorMultiprocesador(2, 4); // 2 CPUs, quantum 4 (base)
+        // ejemplo: 6 CPUs, quantum 4, RAM 16MB (opc)
+        PlanificadorMultiprocesador plan = new PlanificadorMultiprocesador(6, 4, 16 * 1024);
 
         plan.iniciar(); // arranca CPUs + reloj
 
@@ -25,8 +43,8 @@ public class Main {
 
         System.out.println("=== SIMULADOR INICIADO ===");
         System.out.println("Comandos:");
-        System.out.println("  add <prioridad> <tiempoCPU>   -> agrega proceso");
-        System.out.println("  ENTER (línea vacía)           -> salir");
+        System.out.println("  add <prioridad> <tiempoCPU> [mem]   -> agrega proceso (mem opcional: 512, 2mb, 256kb)");
+        System.out.println("  ENTER (línea vacía)                 -> salir");
 
         while (true) {
             String linea = sc.nextLine();
@@ -46,16 +64,21 @@ public class Main {
                         throw new IllegalArgumentException();
 
                     int prioridad = Integer.parseInt(p[1]);
-                    int cpu = Integer.parseInt(p[2]);
+                    int cpuTime = Integer.parseInt(p[2]);
 
-                    Proceso nuevo = new Proceso(id++, prioridad, -1, cpu); // llegada la fijará el planificador
+                    int memKB = 0;
+                    if (p.length >= 4) {
+                        memKB = parseMemKB(p[3]);
+                    }
+
+                    Proceso nuevo = new Proceso(id++, prioridad, -1, cpuTime, memKB); // llegada la fijará el planificador
                     plan.agregarProceso(nuevo);
 
                     System.out.println("Proceso agregado: P" + nuevo.getId() +
-                            " (prio=" + prioridad + ", cpu=" + cpu +
-                            ", llegada=" + nuevo.getTiempoLlegada() + ")");
+                            " (prio=" + prioridad + ", cpu=" + cpuTime +
+                            ", mem=" + memKB + "KB, llegada=" + nuevo.getTiempoLlegada() + ")");
                 } catch (Exception e) {
-                    System.out.println("Formato inválido. Usa: add prioridad tiempoCPU");
+                    System.out.println("Formato inválido. Usa: add prioridad tiempoCPU [mem]");
                 }
             } else {
                 System.out.println("Comando desconocido. Usa 'add' o presiona ENTER para salir.");
@@ -79,7 +102,9 @@ public class Main {
                             " | Retorno=" + p.getTiempoRetorno() +
                             " | Llegada=" + p.getTiempoLlegada() +
                             " | Inicio=" + p.getTiempoInicio() +
-                            " | Fin=" + p.getTiempoFin());
+                            " | Fin=" + p.getTiempoFin() +
+                            " | Mem=" + p.getTamMemoriaKB() + "KB"
+            );
         }
 
         System.out.println("\n=== USO DEL CPU ===");
