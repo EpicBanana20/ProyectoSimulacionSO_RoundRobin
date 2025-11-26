@@ -1,3 +1,4 @@
+import java.util.List;
 import java.util.Scanner;
 
 public class Main {
@@ -49,6 +50,37 @@ public class Main {
             }
         }
 
-        System.out.println("Programa finalizado.");
+        // ------------------------------------------------------------
+        // 🔥 ESTADÍSTICAS FINALES (solo lo añadido)
+        // ------------------------------------------------------------
+
+        System.out.println("\n=== ESTADÍSTICAS DE PROCESOS ===");
+
+        List<Proceso> terminados = plan.getTodosTerminados();
+        terminados.sort((a, b) -> Integer.compare(a.getId(), b.getId()));
+
+        for (Proceso p : terminados) {
+            System.out.println(
+                "P" + p.getId() +
+                " | Resp=" + p.getTiempoRespuesta() +
+                " | Espera=" + p.getTiempoEspera() +
+                " | Retorno=" + p.getTiempoRetorno()
+            );
+        }
+
+        System.out.println("\n=== USO DEL CPU ===");
+
+        int i = 0;
+        for (Procesador cpu : plan.getCpus()) {
+            long usados = cpu.getTicksEjecutados();
+            long total = cpu.getTicksTotales();
+
+            double uso = (total == 0 ? 0 : (100.0 * usados / total));
+
+            System.out.printf("CPU %d: %.2f%% (trabajo=%d, ticks=%d)\n",
+                    i++, uso, usados, total);
+        }
+
+        System.out.println("\nPrograma finalizado.");
     }
 }

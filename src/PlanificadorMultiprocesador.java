@@ -5,6 +5,10 @@ public class PlanificadorMultiprocesador {
 
     private final List<Procesador> cpus;
 
+    public List<Procesador> getCpus() {
+        return cpus;
+    }
+
     public PlanificadorMultiprocesador(int numProcesadores, int quantum) {
         cpus = new ArrayList<>();
 
@@ -14,11 +18,13 @@ public class PlanificadorMultiprocesador {
     }
 
     public void iniciar() {
-        for (Procesador cpu : cpus) cpu.start();
+        for (Procesador cpu : cpus)
+            cpu.start();
     }
 
     public void detener() {
-        for (Procesador cpu : cpus) cpu.detener();
+        for (Procesador cpu : cpus)
+            cpu.detener();
     }
 
     // Reparto REAL: CPU con menos carga total
@@ -30,5 +36,13 @@ public class PlanificadorMultiprocesador {
             }
         }
         cpuMenosCarga.agregarProceso(p);
+    }
+
+    public List<Proceso> getTodosTerminados() {
+        List<Proceso> r = new ArrayList<>();
+        for (Procesador cpu : cpus) {
+            r.addAll(cpu.getTerminados());
+        }
+        return r;
     }
 }
