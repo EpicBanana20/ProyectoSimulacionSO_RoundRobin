@@ -85,6 +85,7 @@ public class RoundRobin {
             // sin trabajo: avanzamos tiempo global y dormimos un poco
             try {
                 Thread.sleep(1000);
+                System.out.println("[CPU " + cpuId + "] Idle | TiempoGlobal=" + tiempoGlobal);
             } catch (InterruptedException ignored) {
             }
             tiempoGlobal++;

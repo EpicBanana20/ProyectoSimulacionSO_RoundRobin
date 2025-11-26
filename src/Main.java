@@ -27,7 +27,7 @@ public class Main {
                 plan.detener();
                 break;
             }
-
+            
             // agregar proceso
             if (linea.trim().toLowerCase().startsWith("add")) {
                 try {
@@ -64,7 +64,9 @@ public class Main {
                 "P" + p.getId() +
                 " | Resp=" + p.getTiempoRespuesta() +
                 " | Espera=" + p.getTiempoEspera() +
-                " | Retorno=" + p.getTiempoRetorno()
+                " | Retorno=" + p.getTiempoRetorno() +
+                " | Llegada=" + p.getTiempoLlegada() +
+                " | Inicio=" + p.getTiempoInicio()
             );
         }
 
