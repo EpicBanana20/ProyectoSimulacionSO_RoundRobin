@@ -52,15 +52,14 @@ public class PlanificadorMultiprocesador {
 
 public void iniciar() {
 
-    // --- INICIAR CPUs SOLO LA PRIMER VEZ ---
     if (!cpusIniciadas) {
         for (Procesador cpu : cpus) {
-            cpu.start();          // SE INICIA UNA SOLA VEZ
+            cpu.start();         
         }
         cpusIniciadas = true;
     }
 
-    // --- INICIAR RELOJ GLOBAL SOLO SI NO EXISTE ---
+
     if (hiloReloj == null) {
         relojEjecutando = true;
 
@@ -190,7 +189,7 @@ public void iniciar() {
         }
     }
 
-    // --- WORK STEALING: intentar robar para el CPU 'thief' ---
+    //  WORK STEALING: intentar robar para el CPU 'thief' 
     public Proceso intentarRobar(Procesador thief) {
         // elegir CPU más cargado distinto de thief
         Procesador origen = null;
@@ -219,10 +218,9 @@ public void iniciar() {
         return r;
     }
 
-    /**
-     * Devuelve una lista con los procesos "activos" (listos o ejecutando)
-     * encontrados recorriendo los CPUs y sus colas.
-     */
+    
+    //   Devuelve una lista con los procesos activos listos o ejecutando encontrados recorriendo los CPUs y sus colas.
+    
     public List<Proceso> getProcesosActivos() {
         Set<Proceso> set = new HashSet<>();
 
@@ -246,9 +244,8 @@ public void iniciar() {
         return new ArrayList<>(set);
     }
 
-        // -----------------------------------------------------
     // Crear proceso desde la interfaz gráfica
-    // -----------------------------------------------------
+   
     public void agregarProcesoNuevo(String idStr, int prioridad, int llegada, int cpu, int memKB) {
         int id;
         try {

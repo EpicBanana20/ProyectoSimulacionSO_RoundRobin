@@ -1,4 +1,3 @@
-/* File: RoundRobin.java */
 import java.util.*;
 
 public class RoundRobin {

@@ -1,4 +1,3 @@
-/* File: AdministradorMemoria.java */
 import java.util.ArrayList;
 import java.util.List;
 
@@ -6,7 +5,7 @@ public class AdministradorMemoria {
 
     public static class Bloque {
         public int inicio;
-        public int tamano; // en KB
+        public int tamano; 
         public Proceso proceso; // null si libre
 
         public Bloque(int inicio, int tamano, Proceso proceso) {

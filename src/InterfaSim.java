@@ -1,13 +1,4 @@
-/* File: InterfaSim.java
-   Versión avanzada (Swing puro) con:
-   - dark theme
-   - pausa/reanudar (CORRECTAMENTE INTEGRADO)
-   - paneles visuales por CPU
-   - gráficas de uso (barras)
-   - vista Gantt simplificada
-   - estadísticas globales
-   - crear procesos (auto ID/llegada/mem) + aleatorio
-*/
+
 import javax.swing.*;
 import javax.swing.Timer;
 import javax.swing.border.*;
@@ -16,7 +7,6 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.util.*;
 import java.util.List;
-
 
 public class InterfaSim extends JFrame {
 
@@ -60,6 +50,7 @@ public class InterfaSim extends JFrame {
 
     // Visual panels
     private final CpuUsagePanel cpuUsagePanel;
+    private final RamPanel ramPanel;
     private final GanttPanel ganttPanel;
 
     // Dark theme colors
@@ -81,7 +72,7 @@ public class InterfaSim extends JFrame {
         setLayout(new BorderLayout(8, 8));
         getContentPane().setBackground(bg);
 
-        // --- Top bar ---
+        //arriba barra
         JPanel top = new JPanel(new BorderLayout(8, 8));
         top.setBackground(panelBg);
         top.setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -91,7 +82,7 @@ public class InterfaSim extends JFrame {
         lblTiempo.setText("TiempoGlobal: 0");
         top.add(lblTiempo, BorderLayout.WEST);
 
-        // --- Controls ---
+        //controles
         JPanel controls = new JPanel();
         controls.setOpaque(false);
         controls.setLayout(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -136,12 +127,11 @@ public class InterfaSim extends JFrame {
         top.add(controls, BorderLayout.EAST);
         add(top, BorderLayout.NORTH);
 
-        // --- MAIN SPLIT ---
         JPanel center = new JPanel(new GridLayout(1, 2, 8, 8));
         center.setBorder(new EmptyBorder(8, 8, 8, 8));
         center.setBackground(bg);
 
-        // --- LEFT PANEL ---
+        // panel izq
         JPanel left = new JPanel(new BorderLayout(8, 8));
         left.setBackground(panelBg);
         left.setBorder(new CompoundBorder(new EmptyBorder(8, 8, 8, 8), new LineBorder(new Color(60, 60, 60))));
@@ -168,8 +158,7 @@ public class InterfaSim extends JFrame {
         JScrollPane spTab = new JScrollPane(tablaProcesos);
         spTab.setBorder(new TitledBorder("Procesos"));
         left.add(spTab, BorderLayout.SOUTH);
-
-        // --- RIGHT PANEL ---
+        // panel derecho
         JPanel right = new JPanel(new BorderLayout(8, 8));
         right.setBackground(panelBg);
         right.setBorder(new CompoundBorder(new EmptyBorder(8, 8, 8, 8), new LineBorder(new Color(60, 60, 60))));
@@ -181,18 +170,28 @@ public class InterfaSim extends JFrame {
             ganttHistory.add(dq);
         }
 
+        // instantiate visual panels
         cpuUsagePanel = new CpuUsagePanel();
-        cpuUsagePanel.setPreferredSize(new Dimension(400, 120));
+        cpuUsagePanel.setPreferredSize(new Dimension(380, 120));
         cpuUsagePanel.setBorder(new TitledBorder("Uso CPU"));
 
+        ramPanel = new RamPanel();
+        ramPanel.setPreferredSize(new Dimension(380, 160));
+        ramPanel.setBorder(new TitledBorder("Memoria RAM"));
+
         ganttPanel = new GanttPanel();
-        ganttPanel.setPreferredSize(new Dimension(400, 220));
+        ganttPanel.setPreferredSize(new Dimension(380, 220));
         ganttPanel.setBorder(new TitledBorder("Vista Gantt"));
 
-        JPanel visuals = new JPanel(new BorderLayout(6, 6));
-        visuals.setOpaque(false);
-        visuals.add(cpuUsagePanel, BorderLayout.NORTH);
-        visuals.add(ganttPanel, BorderLayout.CENTER);
+        // stack vertically inside right column
+        JPanel stack = new JPanel();
+        stack.setOpaque(false);
+        stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
+        stack.add(cpuUsagePanel);
+        stack.add(Box.createVerticalStrut(8));
+        stack.add(ramPanel);
+        stack.add(Box.createVerticalStrut(8));
+        stack.add(ganttPanel);
 
         // Stats
         JPanel stats = new JPanel(new GridLayout(3, 2, 6, 6));
@@ -207,7 +206,7 @@ public class InterfaSim extends JFrame {
             statsLabels.add(lbl);
         }
 
-        right.add(visuals, BorderLayout.CENTER);
+        right.add(stack, BorderLayout.CENTER);
         right.add(stats, BorderLayout.SOUTH);
 
         center.add(left);
@@ -215,17 +214,15 @@ public class InterfaSim extends JFrame {
 
         add(center, BorderLayout.CENTER);
 
-        // --- BOTTOM ---
+        // boton
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.LEFT));
         bottom.setBackground(panelBg);
-        JLabel legend = new JLabel("Leyenda: idle = -1");
+        JLabel legend = new JLabel("Leyenda: idle = -1 (RAM: verde = ejecutando, azul = listo, gris = libre)");
         legend.setForeground(muted);
         bottom.add(legend);
         add(bottom, BorderLayout.SOUTH);
 
-        // ==========================
-        //      TIMER DE REFRESCO
-        // ==========================
+        //     refresco
         timerSimulacion = new Timer(300, e -> {
             if (!pausado) refrescar();
         });
@@ -235,9 +232,8 @@ public class InterfaSim extends JFrame {
         setVisible(true);
     }
 
-    // ============================================================
-    //           REANUDAR
-    // ============================================================
+    // stop seguir
+   
 
     public void pausar() {
         synchronized (pausaLock) {
@@ -254,24 +250,18 @@ public class InterfaSim extends JFrame {
 
     // Botón de la UI
     private void accionPausaResume(ActionEvent ev) {
-
         if (pausado) {
             // REANUDAR
             reanudar();
             btnPauseResume.setText("Pausar");
-            timerSimulacion.start();
+            if (timerSimulacion != null) timerSimulacion.start();
         } else {
             // PAUSAR
             pausar();
             btnPauseResume.setText("Reanudar");
-            timerSimulacion.stop();
+            if (timerSimulacion != null) timerSimulacion.stop();
         }
     }
-
-    // ============================================================
-    //                 RESTO DEL CÓDIGO ORIGINAL
-    // ============================================================
-
     private void styleLabel(JLabel l) {
         l.setForeground(text);
     }
@@ -294,8 +284,16 @@ public class InterfaSim extends JFrame {
         a.setFont(new Font("Monospaced", Font.PLAIN, 12));
     }
 
-    private void applyDarkStyles() {}
+    private void applyDarkStyles() {
+        // keep minimal; you can add more styling if desired
+        tablaProcesos.setBackground(new Color(50, 54, 60));
+        tablaProcesos.setForeground(text);
+        tablaProcesos.setGridColor(new Color(70,70,70));
+        tablaProcesos.getTableHeader().setBackground(new Color(60,63,68));
+        tablaProcesos.getTableHeader().setForeground(text);
+    }
 
+    // Crear proceso desde formulario
     private void crearProcesoDesdeForm() {
         try {
             int prio = Integer.parseInt(txtPrioridad.getText().trim());
@@ -320,7 +318,7 @@ public class InterfaSim extends JFrame {
         Proceso p = new Proceso(id, prioridad, llegada, tiempoCPU, mem);
         plan.agregarProceso(p);
     }
-
+    //refresh ui
     private void refrescar() {
         int tg = TiempoGlobal.get();
         lblTiempo.setText("TiempoGlobal: " + tg);
@@ -335,6 +333,7 @@ public class InterfaSim extends JFrame {
         areaMemoria.setText(textMemoria());
 
         cpuUsagePanel.repaint();
+        ramPanel.repaint();
         ganttPanel.repaint();
     }
 
@@ -420,7 +419,7 @@ public class InterfaSim extends JFrame {
         statsLabels.get(5).setText("CPUs: " + plan.getCpus().size());
     }
 
-    // ---------------- Gantt ----------------
+    //Gantt 
     private void actualizarGanttHistory() {
         List<Procesador> cpus = plan.getCpus();
         while (ganttHistory.size() < cpus.size()) {
@@ -438,7 +437,7 @@ public class InterfaSim extends JFrame {
         }
     }
 
-
+    //Panels internos 
     private class CpuUsagePanel extends JPanel {
         List<Double> util = new ArrayList<>();
 
@@ -489,7 +488,7 @@ public class InterfaSim extends JFrame {
             int w = getWidth(), h = getHeight();
 
             int rows = ganttHistory.size();
-            int rowH = h / rows;
+            int rowH = rows == 0 ? h : (h / rows);
 
             for (int r = 0; r < rows; r++) {
                 Deque<Integer> dq = ganttHistory.get(r);
@@ -521,62 +520,87 @@ public class InterfaSim extends JFrame {
 
     private class RamPanel extends JPanel {
 
-    public RamPanel() {
-        setPreferredSize(new Dimension(400, 180));
-        setBackground(panelBg);
-        setBorder(new TitledBorder("RAM"));
-    }
-
-    @Override
-    protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-
-        int w = getWidth() - 20;
-        int h = getHeight() - 40;
-        int x0 = 10;
-        int y0 = 20;
-
-        var bloques = plan.getMemManager().getSnapshot();
-        int total = plan.getMemManager().getTamTotalKB();
-
-        int cursorX = x0;
-
-        for (AdministradorMemoria.Bloque b : bloques) {
-
-            double frac = (double) b.tamano / total;
-            int bw = (int) (w * frac);
-
-            Color col;
-
-            if (b.estaLibre()) {
-                col = new Color(80, 80, 80);         // libre
-            } else {
-                Proceso p = b.proceso;
-
-                if (p.getEstado() == Proceso.Estado.EJECUTANDO) {
-                    col = new Color(80, 180, 80);    // ejecutando foreground
-                } else if (p.getEstado() == Proceso.Estado.LISTO) {
-                    col = new Color(100, 160, 255);  // listo - background
-                } else {
-                    // SUSPENDIDOS no deben aparecer ocupando RAM
-                    col = new Color(60, 60, 60);
-                }
-            }
-
-            g.setColor(col);
-            g.fillRect(cursorX, y0, bw, h);
-
-            g.setColor(Color.BLACK);
-            g.drawRect(cursorX, y0, bw, h);
-
-            cursorX += bw;
+        public RamPanel() {
+            setPreferredSize(new Dimension(380, 160));
+            setBackground(panelBg);
+            setBorder(new TitledBorder("RAM"));
         }
 
-        // Texto de uso
-        g.setColor(text);
-        int usado = plan.getMemManager().getOcupadoKB();
-        g.drawString("Usado: " + usado + " / " + total + " KB", x0, y0 + h + 15);
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            int w = Math.max(10, getWidth() - 20);
+            int h = Math.max(10, getHeight() - 50);
+            int x0 = 10;
+            int y0 = 20;
+
+            var bloques = plan.getMemManager().getSnapshot();
+            int total = plan.getMemManager().getTamTotalKB();
+            if (total <= 0) total = 1; // evitar división por cero
+
+            int cursorX = x0;
+
+            for (AdministradorMemoria.Bloque b : bloques) {
+
+                double frac = (double) b.tamano / total;
+                int bw = Math.max(2, (int) (w * frac));
+
+                Color col;
+
+                if (b.estaLibre()) {
+                    col = new Color(80, 80, 80);         // libre
+                } else {
+                    Proceso p = b.proceso;
+
+                    // si el proceso está suspendido técnicamente no debería ocupar memoria
+                    // pero como tu AdministradorMemoria asigna null para libres, aquí consideramos
+                    // el estado del proceso actual en el bloque para colorear.
+                    if (p != null && p.getEstado() == Proceso.Estado.EJECUTANDO) {
+                        col = new Color(80, 180, 80);    // ejecutando foreground
+                    } else if (p != null && p.getEstado() == Proceso.Estado.LISTO) {
+                        col = new Color(100, 160, 255);  // listo - background
+                    } else {
+                        col = new Color(100, 100, 100);  // fallback / otros
+                    }
+                }
+
+                g.setColor(col);
+                g.fillRect(cursorX, y0, bw, h);
+
+                g.setColor(new Color(30,30,30));
+                g.drawRect(cursorX, y0, bw, h);
+
+                cursorX += bw;
+            }
+
+            // Texto de uso
+            g.setColor(text);
+            int usado = plan.getMemManager().getOcupadoKB();
+            g.drawString("Usado: " + usado + " / " + plan.getMemManager().getTamTotalKB() + " KB", x0, y0 + h + 18);
+
+            // legenda pequeña
+            int leyX = x0;
+            int leyY = y0 + h + 32;
+            int leyW = 14, leyH = 12, gap = 8;
+            // ejecutando
+            g.setColor(new Color(80,180,80));
+            g.fillRect(leyX, leyY, leyW, leyH);
+            g.setColor(text);
+            g.drawString("Ejecutando", leyX + leyW + 6, leyY + leyH - 2);
+            leyX += 90;
+            // listo
+            g.setColor(new Color(100,160,255));
+            g.fillRect(leyX, leyY, leyW, leyH);
+            g.setColor(text);
+            g.drawString("Listo (en RAM)", leyX + leyW + 6, leyY + leyH - 2);
+            leyX += 130;
+            // libre
+            g.setColor(new Color(80,80,80));
+            g.fillRect(leyX, leyY, leyW, leyH);
+            g.setColor(text);
+            g.drawString("Libre", leyX + leyW + 6, leyY + leyH - 2);
+        }
     }
-}
 
 }

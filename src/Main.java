@@ -1,4 +1,4 @@
-/* File: Main.java */
+
 import java.util.List;
 import java.util.Scanner;
 import javax.swing.SwingUtilities;
@@ -28,12 +28,12 @@ public class Main {
         // Reiniciar tiempo global (por si se ejecutó antes en la misma JVM)
         TiempoGlobal.reset();
 
-        // ejemplo: 6 CPUs, quantum 4, RAM 16MB (opc)
-        PlanificadorMultiprocesador plan = new PlanificadorMultiprocesador(3, 4, 1 * 1024);
+        // ejemplo: 6 CPUs, quantum 4, RAM 16MB 
+        PlanificadorMultiprocesador plan = new PlanificadorMultiprocesador(5, 4, 4 * 1024);
 
         plan.iniciar(); // arranca CPUs + reloj
 
-        // Lanzar GUI en Swing (ventana aparte)
+        // Lanzar GUI en Swing 
         SwingUtilities.invokeLater(() -> {
             new InterfaSim(plan);
         });
@@ -85,9 +85,7 @@ public class Main {
             }
         }
 
-        // ------------------------------------------------------------
-        // ESTADÍSTICAS FINALES
-        // ------------------------------------------------------------
+        // estadisticas finales
 
         System.out.println("\n=== ESTADÍSTICAS DE PROCESOS ===");
 

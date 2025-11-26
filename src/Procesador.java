@@ -1,4 +1,3 @@
-/* File: Procesador.java */
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +25,7 @@ public class Procesador extends Thread {
         this.tickLock = tickLock;
 
         // no fijamos listener aquí porque el planificador puede necesitarse para liberar memoria
-        // lo configuramos en setPlanificador(...) para que incluya ambas acciones.
+        // lo configuramos en setPlanificador para que incluya ambas acciones.
     }
 
     // Setter para que el planificador establezca la referencia (se llama desde el planificador)
@@ -119,11 +118,7 @@ public class Procesador extends Thread {
         }
         System.out.println("CPU " + id + " detenido.");
     }
-
-    // -----------------------
     // Métodos para la GUI
-    // -----------------------
-
     // Retorna snapshot de las colas del RoundRobin de este procesador
     public Map<Integer, java.util.List<Proceso>> getColasSnapshot() {
         return rr.getColasSnapshot();

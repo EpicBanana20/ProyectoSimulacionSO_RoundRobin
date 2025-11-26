@@ -1,4 +1,3 @@
-/* File: TiempoGlobal.java */
 public class TiempoGlobal {
     private static int tiempo = 0;
 

@@ -1,4 +1,3 @@
-/* File: Proceso.java */
 public class Proceso {
 
     public enum Estado {
@@ -42,7 +41,7 @@ public class Proceso {
         this.tamMemoriaKB = Math.max(0, tamMemoriaKB);
     }
 
-    // ... getters previos ...
+    // getters 
 
     public int getId() {
         return id;
@@ -105,12 +104,12 @@ public class Proceso {
         this.estado = nuevoEstado;
     }
 
-    // ===== memoria =====
+    // memoria 
     public int getTamMemoriaKB() {
         return tamMemoriaKB;
     }
 
-    // ===== tiempos derivados (igual que antes) =====
+    // tiempos derivados 
 
     public int getTiempoRespuesta() {
         if (tiempoInicio == -1 || tiempoLlegada == -1) return -1;
