@@ -1,3 +1,4 @@
+/* File: Procesador.java */
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,14 +53,18 @@ public class Procesador extends Thread {
     public void run() {
         System.out.println("CPU " + id + " iniciando...");
         while (ejecutando) {
-            rr.ejecutarTick();
+            int[] resultado = rr.ejecutarTick(); // [ticksAvanzados, ticksTrabajados]
+            int avanzados = resultado[0];
+            int trabajados = resultado[1];
 
-            ticksTotales++;
-
-            if (rr.hizoTrabajoEnEsteTick()) {
-                ticksEjecutados++;
-            }
+            ticksTotales += avanzados;
+            ticksEjecutados += trabajados;
         }
         System.out.println("CPU " + id + " detenido.");
+    }
+
+    // Exponer tiempo global del RR para que el planificador asigne la llegada correcta
+    public int getTiempoGlobal() {
+        return rr.getTiempoGlobal();
     }
 }

@@ -1,3 +1,4 @@
+/* File: Proceso.java */
 public class Proceso {
 
     public enum Estado {
@@ -56,6 +57,10 @@ public class Proceso {
         return tiempoLlegada;
     }
 
+    public void setTiempoLlegada(int tiempoLlegada) {
+        this.tiempoLlegada = tiempoLlegada;
+    }
+
     public int getTiempoInicio() {
         return tiempoInicio;
     }
@@ -80,8 +85,8 @@ public class Proceso {
         return tiempoRestante;
     }
 
-    public void consumirCPU(int quantum) {
-        tiempoRestante -= quantum;
+    public void consumirCPU(int unidades) {
+        tiempoRestante -= unidades;
         if (tiempoRestante < 0) tiempoRestante = 0;
     }
 
@@ -95,13 +100,13 @@ public class Proceso {
 
     // Tiempo de respuesta = inicio - llegada
     public int getTiempoRespuesta() {
-        if (tiempoInicio == -1) return -1;
+        if (tiempoInicio == -1 || tiempoLlegada == -1) return -1;
         return tiempoInicio - tiempoLlegada;
     }
 
     // Tiempo de retorno = fin - llegada
     public int getTiempoRetorno() {
-        if (tiempoFin == -1) return -1;
+        if (tiempoFin == -1 || tiempoLlegada == -1) return -1;
         return tiempoFin - tiempoLlegada;
     }
 

@@ -1,3 +1,4 @@
+/* File: Main.java */
 import java.util.List;
 import java.util.Scanner;
 
@@ -27,7 +28,7 @@ public class Main {
                 plan.detener();
                 break;
             }
-            
+
             // agregar proceso
             if (linea.trim().toLowerCase().startsWith("add")) {
                 try {
@@ -37,7 +38,7 @@ public class Main {
                     int prioridad = Integer.parseInt(p[1]);
                     int cpu = Integer.parseInt(p[2]);
 
-                    Proceso nuevo = new Proceso(id++, prioridad, 0, cpu);
+                    Proceso nuevo = new Proceso(id++, prioridad, -1, cpu); // llegada la pondrá el planificador
                     plan.agregarProceso(nuevo);
 
                     System.out.println("Proceso agregado: " + nuevo.getId() +
@@ -51,7 +52,7 @@ public class Main {
         }
 
         // ------------------------------------------------------------
-        // 🔥 ESTADÍSTICAS FINALES (solo lo añadido)
+        // 🔥 ESTADÍSTICAS FINALES
         // ------------------------------------------------------------
 
         System.out.println("\n=== ESTADÍSTICAS DE PROCESOS ===");
@@ -66,7 +67,8 @@ public class Main {
                 " | Espera=" + p.getTiempoEspera() +
                 " | Retorno=" + p.getTiempoRetorno() +
                 " | Llegada=" + p.getTiempoLlegada() +
-                " | Inicio=" + p.getTiempoInicio()
+                " | Inicio=" + p.getTiempoInicio() +
+                " | Fin=" + p.getTiempoFin()
             );
         }
 

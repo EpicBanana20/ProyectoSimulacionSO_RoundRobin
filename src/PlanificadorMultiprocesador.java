@@ -1,3 +1,4 @@
+/* File: PlanificadorMultiprocesador.java */
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,6 +36,11 @@ public class PlanificadorMultiprocesador {
                 cpuMenosCarga = cpu;
             }
         }
+
+        // asignar tiempo de llegada REAL según tiempoGlobal de la CPU elegida
+        int llegada = cpuMenosCarga.getTiempoGlobal();
+        p.setTiempoLlegada(llegada);
+
         cpuMenosCarga.agregarProceso(p);
     }
 
